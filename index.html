@@ -411,6 +411,49 @@
     font-family: var(--font-mono);
   }
 
+  /* MASTER SIGNAL BADGE */
+  .master-signal-wrap {
+    margin: 8px 0 4px;
+    border-radius: var(--radius2);
+    overflow: hidden;
+  }
+  .master-signal-badge {
+    display: block;
+    width: 100%;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 26px;
+    letter-spacing: 1px;
+    padding: 18px 10px 14px;
+    border-radius: var(--radius2) var(--radius2) 0 0;
+    line-height: 1;
+    text-transform: uppercase;
+    transition: background 0.3s, color 0.3s;
+  }
+  .master-signal-badge.strong-buy  { background: #1aff7a22; color: #1aff7a; border: 2px solid #1aff7a55; border-bottom: none; }
+  .master-signal-badge.buy         { background: #3ecf8e1a; color: #3ecf8e; border: 2px solid #3ecf8e44; border-bottom: none; }
+  .master-signal-badge.hold        { background: #e8b14a1a; color: #e8b14a; border: 2px solid #e8b14a44; border-bottom: none; }
+  .master-signal-badge.sell        { background: #e8813a1a; color: #e8813a; border: 2px solid #e8813a44; border-bottom: none; }
+  .master-signal-badge.strong-sell { background: #e84a4a1a; color: #e84a4a; border: 2px solid #e84a4a55; border-bottom: none; animation: pulse 1.5s infinite; }
+  .master-signal-badge.loading     { background: var(--bg3); color: var(--text3); border: 2px solid var(--border); border-bottom: none; font-size: 16px; }
+  .master-signal-summary {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 10px 14px 12px;
+    border-radius: 0 0 var(--radius2) var(--radius2);
+    border: 2px solid transparent;
+    border-top: none;
+    transition: background 0.3s;
+  }
+  .master-signal-badge.strong-buy  + .master-signal-summary { background: #1aff7a0a; border-color: #1aff7a55; color: #a0ffcc; }
+  .master-signal-badge.buy         + .master-signal-summary { background: #3ecf8e0a; border-color: #3ecf8e44; color: #80d8aa; }
+  .master-signal-badge.hold        + .master-signal-summary { background: #e8b14a0a; border-color: #e8b14a44; color: #d8a870; }
+  .master-signal-badge.sell        + .master-signal-summary { background: #e8813a0a; border-color: #e8813a44; color: #e0a060; }
+  .master-signal-badge.strong-sell + .master-signal-summary { background: #e84a4a0a; border-color: #e84a4a55; color: #ff9090; }
+  .master-signal-badge.loading     + .master-signal-summary { background: var(--bg3); border-color: var(--border); color: var(--text3); }
+
   /* 3-5-7 DASHBOARD */
   .rule-dashboard { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
   .rule-box { background: var(--bg3); border-radius: var(--radius); padding: 12px; text-align: center; border: 1px solid var(--border); }
@@ -473,14 +516,21 @@
       <div class="stat-row"><span class="stat-label">Est. Tax (22%)</span><span class="stat-val bear" id="taxEst">$0.00</span></div>
       <div class="stat-row"><span class="stat-label">Take-home</span><span class="stat-val bull" id="taxTakeHome">$0.00</span></div>
     </div>
-    <div class="card">
+    <div class="card" style="display:flex;flex-direction:column;gap:0;">
       <div class="card-title"><div class="dot bear"></div>Signal</div>
-      <div class="stat-row"><span class="stat-label">Market</span><span class="stat-val" id="statMarket"><span class="signal neutral">Calculating…</span></span></div>
-      <div class="stat-row"><span class="stat-label">MA5 vs MA20</span><span class="stat-val" id="statMAgap">—</span></div>
-      <div class="stat-row"><span class="stat-label">Gap Direction</span><span class="stat-val" id="statGapDir">—</span></div>
-      <div style="margin-top:8px;">
-        <div class="big-counter" id="bigCounter">—</div>
-        <div class="counter-label">Days MA5 above MA20</div>
+      <!-- MASTER SIGNAL BADGE -->
+      <div class="master-signal-wrap">
+        <div class="master-signal-badge loading" id="masterSignalBadge">⏳ LOADING</div>
+        <div class="master-signal-summary" id="masterSignalSummary">Waiting for price data…</div>
+      </div>
+      <div style="margin-top:10px;">
+        <div class="stat-row"><span class="stat-label">Market</span><span class="stat-val" id="statMarket"><span class="signal neutral">Calculating…</span></span></div>
+        <div class="stat-row"><span class="stat-label">MA5 vs MA20</span><span class="stat-val" id="statMAgap">—</span></div>
+        <div class="stat-row"><span class="stat-label">Gap Direction</span><span class="stat-val" id="statGapDir">—</span></div>
+        <div style="margin-top:8px;">
+          <div class="big-counter" id="bigCounter">—</div>
+          <div class="counter-label">Days MA5 above MA20</div>
+        </div>
       </div>
     </div>
   </div>
@@ -928,6 +978,80 @@ function onNewPriceData() {
 }
 
 // =====================================================
+// MASTER SIGNAL STATE
+// =====================================================
+function calcSignalState() {
+  const n = allPriceData.length;
+  const ma5 = ma5arr[n-1];
+  const ma20 = ma20arr[n-1];
+  const ma5prev = ma5arr[n-2];
+  const ma20prev = ma20arr[n-2];
+  if (ma5 == null || ma20 == null) return { state:'loading', label:'⏳ LOADING', cls:'loading', summary:'Waiting for price data…' };
+
+  const gap = ma5 - ma20;
+  const gapPrev = (ma5prev != null && ma20prev != null) ? ma5prev - ma20prev : gap;
+  const gapDelta = gap - gapPrev;
+  const absPct = Math.abs(gap / ma20);
+
+  // Count consecutive days MA5 BELOW MA20 for strong sell
+  let consecBelow = 0;
+  for (let i = n-1; i >= 0; i--) {
+    if (ma5arr[i] != null && ma20arr[i] != null && ma5arr[i] < ma20arr[i]) consecBelow++;
+    else break;
+  }
+
+  const posStr = S.position
+    ? `Position open (${S.position.shares} sh @ ${fmt(S.position.entryPrice)}). Monitor stops.`
+    : 'No open position.';
+
+  if (consecBelow >= 2) {
+    return {
+      cls: 'strong-sell',
+      label: '⛔ STRONG SELL',
+      summary: `MA5 has been below MA20 for ${consecBelow} consecutive days with a ${gapWidening?'widening':'persistent'} bearish gap. Do not enter. If holding, exit immediately. ${posStr}`
+    };
+  }
+  if (gap < 0) {
+    const reason = gapDelta < 0 ? 'gap is widening to the downside' : 'gap narrowing but MA5 still below MA20';
+    return {
+      cls: 'sell',
+      label: '🔻 SELL',
+      summary: `MA5 has crossed below MA20 — ${reason}. Exit any open position manually on Schwab. Cancel OCO if set. Do not enter new trades. ${posStr}`
+    };
+  }
+  // MA5 above MA20 from here
+  if (consecutiveDays >= 3 && gapWidening && marketBull) {
+    const allMet = S.position ? 'Already in trade — hold and monitor stops.' : 'All entry conditions met. Enter trade now if no position open.';
+    return {
+      cls: 'strong-buy',
+      label: '🟢 STRONG BUY',
+      summary: `MA5 has been above MA20 for ${consecutiveDays} consecutive days with a widening gap. Both morning and evening conditions met. Market is BULL. ${allMet}`
+    };
+  }
+  if (consecutiveDays > 0 && consecutiveDays < 3) {
+    return {
+      cls: 'buy',
+      label: '🔼 BUY',
+      summary: `MA5 is above MA20 but only ${consecutiveDays} of 3 required days confirmed. Gap is ${gapWidening?'widening — almost there':'not yet clearly widening'}. Wait for 3-day rule to complete before entering. ${posStr}`
+    };
+  }
+  if (consecutiveDays >= 3 && !gapWidening) {
+    return {
+      cls: 'buy',
+      label: '🔼 BUY',
+      summary: `MA5 has been above MA20 for ${consecutiveDays} days but the gap is ${gapDelta < 0 ? 'narrowing — caution, wait for widening to resume' : 'flat — not yet clearly widening'}. Hold off on entry until gap direction confirms. ${posStr}`
+    };
+  }
+  // Close together / unclear
+  const gapBps = (absPct * 10000).toFixed(0);
+  return {
+    cls: 'hold',
+    label: '⏸ HOLD',
+    summary: `MA5 and MA20 are very close (${gapBps} bps gap). Direction is unclear — gap is ${gapWidening?'marginally widening':'narrowing or flat'}. No clear edge today. Do not enter. Watch for clearer separation tomorrow. ${posStr}`
+  };
+}
+
+// =====================================================
 // UI UPDATES
 // =====================================================
 function fmt(v) { return '$'+v.toFixed(2); }
@@ -1005,6 +1129,14 @@ function updateUI() {
   document.getElementById('statGapDir').innerHTML = gapWidening
     ? '<span class="signal bull">↗ Widening</span>'
     : '<span class="signal bear">↘ Narrowing</span>';
+
+  // Master signal badge
+  const sig = calcSignalState();
+  const badge = document.getElementById('masterSignalBadge');
+  const summary = document.getElementById('masterSignalSummary');
+  badge.className = 'master-signal-badge ' + sig.cls;
+  badge.textContent = sig.label;
+  summary.textContent = sig.summary;
 
   // Counter
   const ctr = document.getElementById('bigCounter');
